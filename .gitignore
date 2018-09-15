@@ -9,6 +9,7 @@
 *.so
 *.dylib
 apirest
+go-apirest
 
 # Test binary, build with `go test -c`
 *.test

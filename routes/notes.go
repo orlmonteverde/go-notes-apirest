@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/orlmonteverde/gyga/apirest/controllers"
+	"github.com/orlmonteverde/go-apirest/controllers/notes"
 )
 
 var (

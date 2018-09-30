@@ -6,27 +6,24 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/orlmonteverde/go-apirest/models"
+	"github.com/orlmonteverde/go-notes-apirest/configuration"
+	"github.com/orlmonteverde/go-notes-apirest/models"
 )
 
-// GetUsers Returns all users
-func GetNotesHandler() (j []byte, status int) {
-	var notes []Note
-	q := `SELECT
-		id, title, description, created_at, updated_at
-		FROM notes`
-	db := models.GetConnection()
+func getNotes(q string, args ...interface{}) (j []byte, status int) {
+	var notes []models.Note
+	db := configuration.GetConnection()
 	defer db.Close()
 
-	rows, err := db.Query(q)
+	rows, err := db.Query(q, args...)
 	if err != nil {
 		log.Println("Error al consultar usuarios", err)
 		status = http.StatusServiceUnavailable
 		return
 	}
-	n := Note{}
+	n := models.Note{}
 	for rows.Next() {
-		rows.Scan(&n.ID, &n.Title, &n.Description, &n.CreatedAt, &n.UpdatedAt)
+		rows.Scan(&n.ID, &n.UserID, &n.Title, &n.Description, &n.CreatedAt, &n.UpdatedAt)
 		notes = append(notes, n)
 	}
 	j, err = json.Marshal(notes)
@@ -39,9 +36,17 @@ func GetNotesHandler() (j []byte, status int) {
 	return
 }
 
-// GetUsers Returns a user with id
-func GetNoteHandler(idStr string) (j []byte, status int) {
-	var n Note
+// GetAllNotes Returns all Notes
+func GetAllNotes() (j []byte, status int) {
+	q := `SELECT
+		id, user_id, title, description, created_at, updated_at
+		FROM notes`
+
+	j, status = getNotes(q)
+	return
+}
+
+func GetNoteById(idStr string) (j []byte, status int) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		log.Println("Id incorrecto", err)
@@ -50,38 +55,33 @@ func GetNoteHandler(idStr string) (j []byte, status int) {
 	}
 
 	q := `SELECT
-		id, title, description, created_at, updated_at
+		id, user_id, title, description, created_at, updated_at
 		FROM notes WHERE id=$1`
-	db := models.GetConnection()
-	defer db.Close()
-	rows, err := db.Query(q, id)
-	defer rows.Close()
-	if err != nil {
-		log.Println("Error al consultar usuario", err)
-		status = http.StatusNotFound
-		return
-	}
-
-	if rows.Next() {
-		rows.Scan(&n.ID, &n.Title, &n.Description, &n.CreatedAt, &n.UpdatedAt)
-	}
-
-	j, err = json.Marshal(n)
-	if err != nil {
-		log.Println("Error al parsear usuario", err)
-		status = http.StatusInternalServerError
-		return
-	}
-	status = http.StatusOK
+	j, status = getNotes(q, id)
 	return
 }
 
-// PostUsers Create a new user
-func PostNoteHandler(note Note) (status int) {
+func GetNotesByUserId(idStr string) (j []byte, status int) {
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		log.Println("Id incorrecto", err)
+		status = http.StatusBadRequest
+		return
+	}
+
+	q := `SELECT
+		id, user_id, title, description, created_at, updated_at
+		FROM notes WHERE user_id=$1`
+	j, status = getNotes(q, id)
+	return
+}
+
+// PostNote Create a new note
+func PostNote(n models.Note) (status int) {
 	q := `INSERT INTO
-			notes(title, description, updated_at)
-			VALUES($1, $2, now())`
-	db := models.GetConnection()
+			notes(user_id, title, description, updated_at)
+			VALUES($1, $2, $3, now())`
+	db := configuration.GetConnection()
 	defer db.Close()
 	stmt, err := db.Prepare(q)
 	if err != nil {
@@ -90,9 +90,9 @@ func PostNoteHandler(note Note) (status int) {
 		return
 	}
 	defer stmt.Close()
-	r, err := stmt.Exec(note.Title, note.Description)
+	r, err := stmt.Exec(n.UserID, n.Title, n.Description)
 	if err != nil {
-		log.Println("Error al insertar usuario", err)
+		log.Println("Error al insertar nota", err)
 		status = http.StatusBadRequest
 		return
 	}
@@ -106,8 +106,8 @@ func PostNoteHandler(note Note) (status int) {
 	return
 }
 
-// DeleteUser Delete a user with id
-func DeleteNoteHandler(idStr string) (status int) {
+// DeleteNote Delete a user for id
+func DeleteNote(idStr string) (status int) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		log.Println("Id incorrecto", err)
@@ -116,7 +116,7 @@ func DeleteNoteHandler(idStr string) (status int) {
 	}
 
 	q := `DELETE FROM notes WHERE id=$1`
-	db := models.GetConnection()
+	db := configuration.GetConnection()
 	defer db.Close()
 	stmt, err := db.Prepare(q)
 	defer stmt.Close()
@@ -143,8 +143,8 @@ func DeleteNoteHandler(idStr string) (status int) {
 	return
 }
 
-// PutUser Update auser with id
-func PutNoteHandler(idStr string, note Note) (status int) {
+// PutNote Update auser with id
+func PutNote(idStr string, n models.Note) (status int) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		log.Println("Id incorrecto", err)
@@ -154,13 +154,13 @@ func PutNoteHandler(idStr string, note Note) (status int) {
 	q := `UPDATE notes SET
 			title=$1, description=$2, updated_at=now()
 			WHERE id=$3`
-	db := models.GetConnection()
+	db := configuration.GetConnection()
 	defer db.Close()
 	stmt, err := db.Prepare(q)
 	defer stmt.Close()
-	r, err := stmt.Exec(note.Title, note.Description, id)
+	r, err := stmt.Exec(n.Title, n.Description, id)
 	if err != nil {
-		log.Println("Error al consultar usuario", err)
+		log.Println("Error al consultar nota", err)
 		status = http.StatusInternalServerError
 		return
 	}

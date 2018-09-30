@@ -9,7 +9,7 @@
 *.so
 *.dylib
 apirest
-go-apirest
+go-notes-apirest
 
 # Test binary, build with `go test -c`
 *.test
@@ -77,3 +77,6 @@ GitHub.sublime-settings
 
 
 # End of https://www.gitignore.io/api/go,linux,sublimetext,visualstudiocode
+
+keys/private.rsa
+configuration/config.json

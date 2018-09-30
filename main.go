@@ -7,49 +7,41 @@ import (
 	"os"
 	"time"
 
-	"github.com/orlmonteverde/go-apirest/helpers"
-	"github.com/orlmonteverde/go-apirest/models"
-	"github.com/orlmonteverde/go-apirest/routes"
+	"github.com/orlmonteverde/go-notes-apirest/commons"
+	"github.com/orlmonteverde/go-notes-apirest/configuration"
+	"github.com/orlmonteverde/go-notes-apirest/routes"
 )
 
-var (
-	defaultPort string
-	server      *http.Server
-	port        *string
-	migrate     *bool
-)
+var port string
 
 func main() {
-	if *migrate {
-		err := models.MakeMigrations()
-		helpers.CheckError(err, "Fallaron las migraciones", true)
-		log.Println("Migraciones realizadas con éxito")
-	}
-	log.Printf("Listening in port %s\n", *port)
-	log.Fatal(server.ListenAndServe())
 
-}
-
-func init() {
-	defaultPort = func() string {
-		if envPort := os.Getenv("port"); envPort == "" {
-			return "8080"
-		} else {
-			return envPort
-		}
-	}()
-
-	port = flag.String("port", defaultPort, "Port to serve")
-	migrate = flag.Bool("migrate", false, "Make Migrations")
+	migrate := flag.Bool("migrate", false, "Make Migrations")
 	flag.Parse()
 
-	r := routes.Mux
+	if *migrate {
+		err := configuration.MakeMigrations()
+		commons.CheckError(err, "Fallaron las migraciones", true)
+		log.Println("Migraciones realizadas con éxito")
+	}
 
-	server = &http.Server{
-		Addr:           ":" + *port,
+	if envPort := os.Getenv("port"); envPort == "" {
+		port = "8080"
+	} else {
+		port = envPort
+	}
+
+	r := routes.InitRoutes()
+
+	server := &http.Server{
+		Addr:           ":" + port,
 		Handler:        r,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
+
+	log.Printf("Listening in port %s\n", port)
+	log.Fatal(server.ListenAndServe())
+
 }

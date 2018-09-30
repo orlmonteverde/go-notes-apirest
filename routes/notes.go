@@ -1,24 +1,20 @@
 package routes
 
 import (
-	"net/http"
-
 	"github.com/gorilla/mux"
-	"github.com/orlmonteverde/go-apirest/controllers/notes"
+	"github.com/orlmonteverde/go-notes-apirest/controllers"
+	"github.com/orlmonteverde/go-notes-apirest/middlewares/auth"
 )
 
-var (
-	Mux *mux.Router
-)
-
-func init() {
-	fs := http.FileServer(http.Dir("public"))
-	Mux = mux.NewRouter()
-	Mux = mux.NewRouter().StrictSlash(false)
-	Mux.Handle("/", fs)
-	Mux.HandleFunc("/api/notes", controllers.GetNotesHandler).Methods("GET")
-	Mux.HandleFunc("/api/notes/{id}", controllers.GetNoteHandler).Methods("GET")
-	Mux.HandleFunc("/api/notes", controllers.PostNoteHandler).Methods("POST")
-	Mux.HandleFunc("/api/notes/{id}", controllers.PutNoteHandler).Methods("PUT")
-	Mux.HandleFunc("/api/notes/{id}", controllers.DeleteNoteHandler).Methods("DELETE")
+func SetNotesRouter(router *mux.Router) {
+	prefix := "/api/notes"
+	subRouter := mux.NewRouter().PathPrefix(prefix).Subrouter().StrictSlash(true)
+	subRouter.HandleFunc("/",
+		auth.ValidateUser(controllers.GetNotesHandler)).Methods("GET")
+	subRouter.HandleFunc("/user/{id}", auth.ValidateUser(controllers.GetUserNotesHandler)).Methods("GET")
+	subRouter.HandleFunc("/{id}", auth.ValidateUser(controllers.GetNoteHandler)).Methods("GET")
+	subRouter.HandleFunc("/", auth.ValidateUser(controllers.PostNoteHandler)).Methods("POST")
+	subRouter.HandleFunc("/{id}", auth.ValidateUser(controllers.PutNoteHandler)).Methods("PUT")
+	subRouter.HandleFunc("/{id}", auth.ValidateUser(controllers.DeleteNoteHandler)).Methods("DELETE")
+	router.PathPrefix(prefix).Handler(subRouter)
 }
